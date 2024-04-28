@@ -1,6 +1,6 @@
-## Vert.x core——HTTPServer和HTTPClient
+# Vert.x core——HTTPServer和HTTPClient
 
-### vertx实例
+## vertx实例
 
 Vert. x Core API 的入口点。
 
@@ -26,9 +26,9 @@ Vertx vertx = Vertx.vertx();
 
 
 
-### 创建HTTP客户端和服务器
+## HTTP客户端和服务器
 
-#### 创建服务器
+### 创建服务器
 
 - 创建服务器对象实例
 
@@ -121,6 +121,8 @@ server.requestHandler(res -> {
   }).listen(8080);
   ```
 
+
+
 ##### 获取请求参数
 
 可以通过`HttpServerRequest`来获取该次请求的请求参数，包括headers、body、method等，以下列举几个常用的参数：
@@ -152,6 +154,8 @@ server.requestHandler(res -> {
   request.absoluteURI()   //绝对URI
   ```
 
+
+
 ##### 结束处理程序
 
 当整个请求（包括任何主体）被完全读取时，将调用`HttpServerRequest`的`endHandler`方法
@@ -161,6 +165,8 @@ request.endHandler(res -> {
     System.out.println("请求结束");
 });
 ```
+
+
 
 ##### 从请求body中读取数据
 
@@ -199,5 +205,170 @@ request.endHandler(res -> {
   });
   ```
 
+- 如果是请求是流式传输，则请求对象是一个ReadStream
+
+
+
+##### 处理HTML form
+
+`HTML` 表单可以使用`content-type`为`application/x-www-form-urlencoded`或来提交`multipart/form-data`
+
+- 如果是url编码表单，表单的属性被封装在url中，则可以像调用普通query一样
+- 对于大部分表单，他们的编码被封装到requestbody内，因此需要遵循上面body的调用规则（当请求处理程序执行完成后使用`handler`或`bodyhandler`）
+
+
+
+##### 处理cookies
+
+- 可以使用`request.getcookie()`、`request.cookies()`或`reques.cookieMap()`（以弃置，建议使用前两种）来获取cookie
+
+- 使用`removeCookie`删除`cookie`
+
+- 使用`addCookie`添加`cookie`
+
+  ```java
+  //查询cookie
+  Cookie someCookie = request.getCookie("mycookie");
+  String cookieValue = someCookie.getValue();
   
+  //添加cookie
+  request.response().addCookie(Cookie.cookie("othercookie", "somevalue"));
+  
+  //接口
+  HttpServerResponse addCookie(Cookie cookie);
+  
+  //删除类似
+  ```
+
+
+
+#### 发送响应
+
+服务器响应对象是`HttpServerResponse`的一个实例，并且是从请求中获取的`response`。
+
+可以使用响应对象将响应写回HTTP客户端
+
+
+
+##### 设置状态码和消息
+
+响应的默认HTTP状态码为200，表示请求正常
+
+可以使用`setStatusCode`来设置不同的code
+
+还可以使用`setStatusMessage`来设置自定义状态消息，如果不自定义，则使用默认状态码及默认消息
+
+
+
+##### 编写HTTP响应
+
+- 要将数据写入`HTTP`响应，可以使用`write`，在响应之前可以多次调用。
+
+  ```java
+  //创建HTTP响应
+  HttpServerResponse response = request.response();
+  //创建buffer缓冲区
+  Buffer buffer = new BufferImpl();
+  //写入数据
+  response.write(buffer);
+  //write也可以直接传入String
+  response.write("hello world!");
+  //可以传入字符串编码
+  response.write("hello world!", "UTF-16");
+  ```
+
+- 将数据写入响应时异步的，并且总会在写入后立即返回
+
+- 如果只需要像HTTP响应写入单个字符串或buffer，则可以直接使用`end`
+
+  ```java
+  //http响应
+  request.response()
+          //设置响应头
+          .putHeader("content-type", "text/plain")
+          //结束响应，响应的返回值
+          .end("Hello from Vert.x HTTP server!");
+  ```
+
+- 在第一次调用`write`时会将`responseHeader`写入响应中，因此如果不使用`chunk`（块）,则必须在写入响应之前设置`responseHeader`
+
+##### 结束HTTP响应
+
+- 一旦完成`HTTP`响应，就应该使用`end`
+
+  ```java
+  HttpServerResponse response = request.response();
+  response.write("hello world!");
+  response.end();
+  
+  HttpServerResponse response = request.response();
+  response.end("hello world!");
+  ```
+
+- 默认情况下`Vert.x`不会自动关闭`keep-alive`连接，如果希望在空闲时间关闭他，则可以设置`setIdleTimeout`
+
+
+
+### 创建客户端
+
+#### 创建客户端实例
+
+```java
+HttpClient client = vertx.createHttpClient();
+```
+
+客户端配置选项
+
+```java
+//客户端配置对象实例
+HttpClientOptions httpClientOptions = new HttpClientOptions();
+//关闭keep-alive
+httpClientOptions.setKeepAlive(false);
+//在创建客户端实例时导入配置
+HttpClient client = vertx.createHttpClient(options);
+```
+
+
+
+#### 发送请求
+
+```java
+httpClient.request(HttpMethod.GET,"/requestUri")
+          .onComplete(res -> {
+           		if (res.succeeded()){
+                    System.out.println("成功");
+                }
+                if (res.failed()){
+                    System.out.println("失败");
+                }
+     });
+```
+
+
+
+#### 写入请求并处理响应
+
+可以使用`send`发送请求（例如`HTTP`）GET并处理异步`HttpClientResponse`
+
+```java
+client
+  .request(HttpMethod.GET, 8080, "myserver.mycompany.com", "/some-uri")
+  .onComplete(ar1 -> {
+    if (ar1.succeeded()) {
+      HttpClientRequest request = ar1.result();
+
+      // Send the request and process the response
+      request
+        .send()
+        .onComplete(ar -> {
+          if (ar.succeeded()) {
+            HttpClientResponse response = ar.result();
+            System.out.println("Received response with status code " + response.statusCode());
+          } else {
+            System.out.println("Something went wrong " + ar.cause().getMessage());
+          }
+        });
+    }
+  });
+```
 
