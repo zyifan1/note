@@ -1,0 +1,17 @@
+
+
+
+
+
+
+### RedisTemplate
+
+org.springframework.data.redis.core.RedisTemplate
+
+RedisTemplate是redis模块的中心类。因为实现了RedisOperations接口，该模板为redis交互提供了高级抽象
+
+RedisOperations中提供了一组基本的Redis操作的接口
+
+在RedisTemplate中execute是其中心方法，支持实现RedisCallback接口的redis访问代码，提供了RedisConnection处理，这样RedisCallback实现和调用代码都不需要显式关心检索/ 关闭 Redis 连接，或处理 Connection 生命周期异常。对于典型的单步操作，有多种便捷方法。
+
+在给定的对象和Redis底层的二进制数据之间使用org.springframework.data.redis.serializer包中的JdkSerializationRedisSerializer自动执行序列化和反序列化
